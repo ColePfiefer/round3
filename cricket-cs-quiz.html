@@ -1,0 +1,680 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>CodeCricket Quiz</title>
+<link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --pitch: #2d5a1b;
+    --pitch-light: #3a7022;
+    --ball: #c0392b;
+    --gold: #f4c430;
+    --sky: #0a1628;
+    --sky-mid: #112240;
+    --white: #f9f6f0;
+    --gray: #8a9bb5;
+    --correct: #27ae60;
+    --wrong: #e74c3c;
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { background: var(--sky); color: var(--white); font-family: 'DM Sans', sans-serif; min-height: 100vh; overflow-x: hidden; position: relative; }
+  body::before { content: ''; position: fixed; inset: 0; background: radial-gradient(ellipse 80% 50% at 50% 60%, rgba(45,90,27,0.15) 0%, transparent 70%), radial-gradient(ellipse 40% 30% at 50% 60%, rgba(45,90,27,0.08) 0%, transparent 60%); pointer-events: none; z-index: 0; }
+  .stars { position: fixed; inset: 0; background-image: radial-gradient(1px 1px at 20% 30%, rgba(255,255,255,0.6) 0%, transparent 100%), radial-gradient(1px 1px at 80% 10%, rgba(255,255,255,0.4) 0%, transparent 100%), radial-gradient(1px 1px at 45% 80%, rgba(255,255,255,0.3) 0%, transparent 100%), radial-gradient(1px 1px at 10% 60%, rgba(255,255,255,0.5) 0%, transparent 100%), radial-gradient(1px 1px at 90% 70%, rgba(255,255,255,0.3) 0%, transparent 100%); pointer-events: none; z-index: 0; }
+  .container { max-width: 740px; margin: 0 auto; padding: 20px; position: relative; z-index: 1; }
+  .header { text-align: center; padding: 36px 0 24px; }
+  .header .badge { display: inline-block; background: var(--ball); color: white; font-size: 11px; font-weight: 600; letter-spacing: 3px; text-transform: uppercase; padding: 6px 16px; border-radius: 2px; margin-bottom: 14px; }
+  .header h1 { font-family: 'Bebas Neue', sans-serif; font-size: clamp(52px, 11vw, 88px); letter-spacing: 4px; line-height: 0.9; color: var(--white); text-shadow: 0 0 60px rgba(244,196,48,0.3); }
+  .header h1 span { color: var(--gold); display: block; }
+  .header .subtitle { margin-top: 12px; color: var(--gray); font-size: 14px; font-weight: 300; letter-spacing: 1px; }
+  .pitch-strip { width: 60px; height: 3px; background: linear-gradient(90deg, transparent, var(--gold), transparent); margin: 14px auto; border-radius: 2px; }
+  .scoreboard { display: flex; align-items: center; justify-content: space-between; background: var(--sky-mid); border: 1px solid rgba(255,255,255,0.08); border-radius: 12px; padding: 14px 20px; margin-bottom: 22px; }
+  .score-item { text-align: center; }
+  .score-item .label { font-size: 10px; font-weight: 600; letter-spacing: 2px; text-transform: uppercase; color: var(--gray); margin-bottom: 3px; }
+  .score-item .value { font-family: 'Bebas Neue', sans-serif; font-size: 30px; letter-spacing: 2px; color: var(--gold); line-height: 1; }
+  .score-item .value.runs { color: var(--white); }
+  .score-item .value.wickets { color: var(--ball); }
+  .divider { width: 1px; height: 38px; background: rgba(255,255,255,0.1); }
+  .progress-wrap { margin-bottom: 22px; }
+  .progress-track { height: 4px; background: rgba(255,255,255,0.1); border-radius: 2px; overflow: hidden; }
+  .progress-fill { height: 100%; background: linear-gradient(90deg, var(--pitch-light), var(--gold)); border-radius: 2px; transition: width 0.5s ease; width: 0%; }
+  .progress-label { display: flex; justify-content: space-between; margin-top: 7px; font-size: 12px; color: var(--gray); }
+  .card { background: var(--sky-mid); border: 1px solid rgba(255,255,255,0.08); border-radius: 16px; padding: 28px; margin-bottom: 16px; animation: slideUp 0.4s ease; }
+  @keyframes slideUp { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: translateY(0); } }
+  .q-meta { display: flex; align-items: center; gap: 10px; margin-bottom: 16px; flex-wrap: wrap; }
+  .q-number { font-family: 'Bebas Neue', sans-serif; font-size: 13px; letter-spacing: 2px; color: var(--gray); }
+  .q-tag { font-size: 10px; font-weight: 600; letter-spacing: 1.5px; text-transform: uppercase; padding: 3px 10px; border-radius: 20px; border: 1px solid; }
+  .q-tag.c    { color: #64b5f6; border-color: rgba(100,181,246,0.4); background: rgba(100,181,246,0.08); }
+  .q-tag.dsa  { color: #ffb74d; border-color: rgba(255,183,77,0.4);  background: rgba(255,183,77,0.08);  }
+  .q-tag.loop { color: #80cbc4; border-color: rgba(128,203,196,0.4); background: rgba(128,203,196,0.08); }
+  .cricket-hook { font-size: 13px; color: var(--gold); font-style: italic; margin-bottom: 12px; opacity: 0.85; }
+  .question-text { font-size: 17px; font-weight: 500; line-height: 1.55; color: var(--white); margin-bottom: 6px; }
+  .code-block { background: #0d1b0d; border: 1px solid rgba(100,181,246,0.18); border-left: 3px solid #64b5f6; border-radius: 8px; padding: 16px 18px; margin: 14px 0 20px; font-family: 'Courier New', monospace; font-size: 14px; line-height: 1.75; color: #e8f5e9; overflow-x: auto; white-space: pre; }
+  .kw  { color: #80cbc4; }
+  .fn  { color: #82aaff; }
+  .num { color: #f78c6c; }
+  .str { color: #c3e88d; }
+  .cmt { color: #546e7a; font-style: italic; }
+  .vr  { color: #ffcb6b; }
+  .options { display: flex; flex-direction: column; gap: 9px; }
+  .option { display: flex; align-items: flex-start; gap: 13px; padding: 13px 17px; background: rgba(255,255,255,0.04); border: 1.5px solid rgba(255,255,255,0.08); border-radius: 10px; cursor: pointer; transition: all 0.2s ease; text-align: left; width: 100%; color: var(--white); font-family: 'DM Sans', sans-serif; font-size: 15px; line-height: 1.4; }
+  .option:hover:not(:disabled) { background: rgba(255,255,255,0.09); border-color: rgba(244,196,48,0.5); transform: translateX(3px); }
+  .option-letter { font-family: 'Bebas Neue', sans-serif; font-size: 16px; letter-spacing: 1px; color: var(--gold); min-width: 18px; margin-top: 1px; }
+  .option.correct { background: rgba(39,174,96,0.15) !important; border-color: var(--correct) !important; transform: none; }
+  .option.wrong   { background: rgba(231,76,60,0.15) !important; border-color: var(--wrong) !important; transform: none; }
+  .option.dim     { opacity: 0.35; }
+  .option:disabled { cursor: default; }
+  .feedback-badge { display: none; margin-top: 14px; padding: 8px 16px; border-radius: 6px; font-size: 15px; font-weight: 600; text-align: center; letter-spacing: 1px; }
+  .feedback-badge.correct-fb { background: rgba(39,174,96,0.18); color: #81c784; border: 1px solid rgba(39,174,96,0.4); display: block; }
+  .feedback-badge.wrong-fb   { background: rgba(231,76,60,0.18); color: #ef9a9a; border: 1px solid rgba(231,76,60,0.4); display: block; }
+  .explanation { margin-top: 16px; padding: 14px 18px; background: rgba(244,196,48,0.06); border-left: 3px solid var(--gold); border-radius: 0 8px 8px 0; font-size: 14px; color: #c8d8e8; line-height: 1.65; display: none; }
+  .explanation.show { display: block; animation: fadeIn 0.3s ease; }
+  .explanation strong { color: var(--gold); }
+  @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+  .btn-next { display: none; width: 100%; margin-top: 14px; padding: 15px; background: var(--pitch); border: none; border-radius: 10px; color: white; font-family: 'Bebas Neue', sans-serif; font-size: 20px; letter-spacing: 3px; cursor: pointer; transition: all 0.2s; }
+  .btn-next:hover { background: var(--pitch-light); transform: translateY(-1px); }
+  .btn-next.show { display: block; }
+  .start-screen { text-align: center; padding: 10px 0 40px; }
+  .start-screen p { color: var(--gray); font-size: 15px; max-width: 480px; margin: 0 auto 28px; line-height: 1.7; }
+  .features { display: flex; justify-content: center; gap: 12px; flex-wrap: wrap; margin-bottom: 32px; }
+  .feature-chip { font-size: 12px; font-weight: 500; padding: 7px 13px; border-radius: 20px; border: 1px solid rgba(255,255,255,0.1); color: var(--gray); }
+  .btn-start { padding: 18px 52px; background: var(--gold); border: none; border-radius: 10px; color: var(--sky); font-family: 'Bebas Neue', sans-serif; font-size: 24px; letter-spacing: 4px; cursor: pointer; transition: all 0.2s; box-shadow: 0 8px 32px rgba(244,196,48,0.3); }
+  .btn-start:hover { transform: translateY(-2px); box-shadow: 0 12px 40px rgba(244,196,48,0.4); }
+  .quiz-area { display: none; }
+  .quiz-area.show { display: block; }
+  .result-screen { display: none; text-align: center; padding: 40px 20px; animation: slideUp 0.5s ease; }
+  .result-screen.show { display: block; }
+  .result-ball { font-size: 76px; margin-bottom: 18px; display: block; }
+  .result-title { font-family: 'Bebas Neue', sans-serif; font-size: 50px; letter-spacing: 3px; color: var(--gold); margin-bottom: 8px; }
+  .result-score-big { font-family: 'Bebas Neue', sans-serif; font-size: 90px; line-height: 1; color: var(--white); margin: 18px 0; }
+  .result-score-big span { color: var(--gray); font-size: 44px; }
+  .result-subtitle { color: var(--gray); font-size: 15px; margin-bottom: 26px; }
+  .result-verdict { display: inline-block; padding: 11px 26px; border-radius: 8px; font-weight: 600; font-size: 16px; margin-bottom: 32px; border: 1px solid; }
+  .result-breakdown { display: flex; justify-content: center; gap: 20px; margin-bottom: 32px; flex-wrap: wrap; }
+  .breakdown-item { background: var(--sky-mid); border: 1px solid rgba(255,255,255,0.08); border-radius: 10px; padding: 14px 22px; text-align: center; }
+  .breakdown-item .num { font-family: 'Bebas Neue', sans-serif; font-size: 34px; display: block; }
+  .breakdown-item .lbl { font-size: 11px; color: var(--gray); text-transform: uppercase; letter-spacing: 1px; }
+  .btn-restart { padding: 15px 44px; background: var(--ball); border: none; border-radius: 10px; color: white; font-family: 'Bebas Neue', sans-serif; font-size: 22px; letter-spacing: 3px; cursor: pointer; transition: all 0.2s; }
+  .btn-restart:hover { background: #a93226; transform: translateY(-2px); }
+
+  /* ── Team name & status ── */
+  .team-input-wrap { margin-bottom: 22px; }
+  .team-label { font-size: 12px; font-weight: 600; letter-spacing: 2px; text-transform: uppercase; color: var(--gray); display: block; margin-bottom: 8px; }
+  .team-input { width: 100%; padding: 14px 18px; background: rgba(255,255,255,0.06); border: 1.5px solid rgba(255,255,255,0.1); border-radius: 10px; color: var(--white); font-family: 'DM Sans', sans-serif; font-size: 16px; font-weight: 500; outline: none; text-transform: uppercase; letter-spacing: 1px; transition: border-color 0.2s; }
+  .team-input:focus { border-color: var(--gold); }
+  .team-input::placeholder { text-transform: none; letter-spacing: 0; color: rgba(138,155,181,0.6); font-weight: 300; }
+
+  .quiz-status-bar { display: flex; align-items: center; justify-content: center; gap: 9px; margin-bottom: 20px; padding: 9px 20px; border-radius: 20px; font-size: 12px; font-weight: 600; letter-spacing: 1.5px; text-transform: uppercase; border: 1px solid; }
+  .quiz-status-bar.active   { background: rgba(39,174,96,0.1);  color: #81c784; border-color: rgba(39,174,96,0.35); }
+  .quiz-status-bar.inactive { background: rgba(231,76,60,0.1);  color: #ef9a9a; border-color: rgba(231,76,60,0.35); }
+  .quiz-status-bar.checking { background: rgba(244,196,48,0.08); color: var(--gold); border-color: rgba(244,196,48,0.25); }
+  .status-dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
+  .status-dot.active   { background: #27ae60; box-shadow: 0 0 6px #27ae60; }
+  .status-dot.inactive { background: #e74c3c; }
+  .status-dot.pulse    { background: var(--gold); animation: pulse 1s ease infinite; }
+  @keyframes pulse { 50% { opacity: 0.4; } }
+
+  .btn-start:disabled { opacity: 0.45; cursor: not-allowed; transform: none !important; box-shadow: none; }
+
+  /* ── Leaderboard on result screen ── */
+  .lb-section { margin-top: 36px; text-align: left; }
+  .lb-title { font-family: 'Bebas Neue', sans-serif; font-size: 26px; letter-spacing: 3px; color: var(--gold); text-align: center; margin-bottom: 14px; }
+  .lb-table-wrap { background: var(--sky-mid); border: 1px solid rgba(255,255,255,0.08); border-radius: 14px; overflow: hidden; }
+  .lb-table { width: 100%; border-collapse: collapse; font-size: 13px; }
+  .lb-table thead th { text-align: left; padding: 10px 14px; border-bottom: 1px solid rgba(255,255,255,0.1); color: var(--gray); font-size: 10px; letter-spacing: 1.5px; text-transform: uppercase; font-weight: 600; }
+  .lb-table tbody tr:hover { background: rgba(255,255,255,0.03); }
+  .lb-table tbody td { padding: 10px 14px; border-bottom: 1px solid rgba(255,255,255,0.05); }
+  .lb-table tbody tr:last-child td { border-bottom: none; }
+  .lb-rank-1 td { background: rgba(244,196,48,0.05); }
+  .lb-you td { background: rgba(100,181,246,0.07); }
+  .lb-loader { text-align: center; padding: 28px; color: var(--gray); font-size: 14px; }
+  .lb-tag { display: inline-block; padding: 2px 8px; border-radius: 10px; font-size: 11px; font-weight: 600; }
+  .lb-tag-c  { background: rgba(39,174,96,0.18);  color: #81c784; }
+  .lb-tag-r  { background: rgba(244,196,48,0.15);  color: var(--gold); }
+  .lb-tag-w  { background: rgba(231,76,60,0.15);   color: #ef9a9a; }
+  .lb-you-badge { display: inline-block; background: rgba(100,181,246,0.2); color: #64b5f6; font-size: 10px; font-weight: 600; letter-spacing: 1px; padding: 1px 6px; border-radius: 8px; margin-left: 6px; vertical-align: middle; }
+
+  .submit-status { margin: 16px 0 0; font-size: 13px; color: var(--gray); text-align: center; min-height: 20px; }
+  .submit-status.ok  { color: #81c784; }
+  .submit-status.err { color: #ef9a9a; }
+</style>
+</head>
+<body>
+<div class="stars"></div>
+<div class="container">
+
+  <div class="header">
+    <div class="badge">🏏 Beginner Edition · Season 2</div>
+    <h1>CODE<span>CRICKET</span></h1>
+    <div class="pitch-strip"></div>
+    <p class="subtitle">C Programming · For Loops · DSA Basics · 12 Overs</p>
+  </div>
+
+  <!-- START SCREEN -->
+  <div class="start-screen" id="startScreen">
+
+    <!-- Quiz status indicator -->
+    <div class="quiz-status-bar checking" id="statusBar">
+      <div class="status-dot pulse" id="statusDot"></div>
+      <span id="statusLabel">Checking quiz status…</span>
+    </div>
+
+    <!-- Team name input -->
+    <div class="team-input-wrap">
+      <label class="team-label" for="teamNameInput">🏏 Your Team Name</label>
+      <input class="team-input" type="text" id="teamNameInput"
+             placeholder="Enter your team name"
+             maxlength="40"
+             oninput="onTeamInput()"
+             onkeydown="if(event.key==='Enter')tryStartQuiz()" />
+    </div>
+
+    <p>Easier pitch, but the bowler still has tricks up his sleeve! Read each code snippet carefully — every semicolon and index counts. Correct = SIX runs. Wrong = Wicket!</p>
+    <div class="features">
+      <div class="feature-chip">🟢 12 Questions</div>
+      <div class="feature-chip">💻 C Programming</div>
+      <div class="feature-chip">🔄 For Loop Traps</div>
+      <div class="feature-chip">📖 Explained Answers</div>
+    </div>
+    <button class="btn-start" id="btnStart" onclick="tryStartQuiz()" disabled>BAT FIRST 🏏</button>
+    <p id="startHint" style="margin-top:12px;font-size:12px;color:var(--gray);"></p>
+  </div>
+
+  <!-- QUIZ AREA -->
+  <div class="quiz-area" id="quizArea">
+    <div class="scoreboard">
+      <div class="score-item"><div class="label">Runs</div><div class="value runs" id="scoreRuns">0</div></div>
+      <div class="divider"></div>
+      <div class="score-item"><div class="label">Wickets</div><div class="value wickets" id="scoreWickets">0</div></div>
+      <div class="divider"></div>
+      <div class="score-item"><div class="label">Over</div><div class="value" id="scoreOver">1</div></div>
+      <div class="divider"></div>
+      <div class="score-item"><div class="label">Strike Rate</div><div class="value" id="strikeRate">—</div></div>
+    </div>
+
+    <div class="progress-wrap">
+      <div class="progress-track"><div class="progress-fill" id="progressFill"></div></div>
+      <div class="progress-label">
+        <span id="progressLabel">Question 1 of 12</span>
+        <span id="progressPct">0%</span>
+      </div>
+    </div>
+
+    <div class="card" id="questionCard">
+      <div class="q-meta">
+        <span class="q-number" id="qNumber">OVER 1</span>
+        <span class="q-tag" id="qTag">C</span>
+      </div>
+      <div class="cricket-hook" id="cricketHook"></div>
+      <div class="question-text" id="questionText"></div>
+      <div id="codeBlock"></div>
+      <div class="options" id="optionsContainer"></div>
+      <div class="feedback-badge" id="feedbackBadge"></div>
+      <div class="explanation" id="explanation"></div>
+    </div>
+
+    <button class="btn-next" id="btnNext" onclick="nextQuestion()">NEXT BALL →</button>
+  </div>
+
+  <!-- RESULT SCREEN -->
+  <div class="result-screen" id="resultScreen">
+    <span class="result-ball" id="resultEmoji">🏆</span>
+    <div class="result-title" id="resultTitle">INNINGS COMPLETE</div>
+    <div class="pitch-strip"></div>
+    <p class="result-subtitle" id="resultSubtitle">Your final scorecard</p>
+    <div class="result-score-big"><span id="finalScore">0</span><span> / 12</span></div>
+    <div class="result-verdict" id="resultVerdict"></div>
+    <div class="result-breakdown">
+      <div class="breakdown-item"><span class="num" id="finalRuns" style="color:var(--gold)">0</span><span class="lbl">Runs Scored</span></div>
+      <div class="breakdown-item"><span class="num" id="finalWickets" style="color:var(--ball)">0</span><span class="lbl">Wickets Lost</span></div>
+      <div class="breakdown-item"><span class="num" id="finalSR" style="color:#64b5f6">0</span><span class="lbl">Strike Rate</span></div>
+    </div>
+    <div class="submit-status" id="submitStatus"></div>
+    <button class="btn-restart" onclick="restartQuiz()">🔄 NEW INNINGS</button>
+
+    <!-- Leaderboard -->
+    <div class="lb-section">
+      <div class="lb-title">🏆 LEADERBOARD</div>
+      <div class="lb-table-wrap">
+        <div id="lbContent" class="lb-loader">Loading leaderboard…</div>
+      </div>
+    </div>
+
+  </div>
+
+</div>
+
+<script>
+// ── Backend config ────────────────────────────────────────────────────────
+const API = window.location.hostname === 'localhost'
+  ? 'http://localhost:3000/api'
+  : `${window.location.origin}/api`;
+let teamName   = '';
+let quizActive = false;
+let statusPoller = null;
+
+// ── Status polling ────────────────────────────────────────────────────────
+async function fetchStatus() {
+  try {
+    const r = await fetch(`${API}/status`);
+    const d = await r.json();
+    quizActive = d.active;
+  } catch {
+    quizActive = false;
+  }
+  updateStatusUI();
+  updateStartBtn();
+}
+
+function updateStatusUI() {
+  const bar  = document.getElementById('statusBar');
+  const dot  = document.getElementById('statusDot');
+  const lbl  = document.getElementById('statusLabel');
+  if (quizActive) {
+    bar.className = 'quiz-status-bar active';
+    dot.className = 'status-dot active';
+    lbl.textContent = 'Quiz is LIVE — ready to play!';
+  } else {
+    bar.className = 'quiz-status-bar inactive';
+    dot.className = 'status-dot inactive';
+    lbl.textContent = 'Quiz not started yet — waiting for admin…';
+  }
+}
+
+function onTeamInput() { updateStartBtn(); }
+
+function updateStartBtn() {
+  const btn  = document.getElementById('btnStart');
+  const hint = document.getElementById('startHint');
+  const name = (document.getElementById('teamNameInput')?.value || '').trim();
+  if (!quizActive && name) {
+    btn.disabled = true;
+    hint.textContent = 'Waiting for the quiz to go live…';
+  } else if (quizActive && !name) {
+    btn.disabled = true;
+    hint.textContent = 'Please enter your team name first.';
+  } else if (quizActive && name) {
+    btn.disabled = false;
+    hint.textContent = '';
+  } else {
+    btn.disabled = true;
+    hint.textContent = '';
+  }
+}
+
+function startPolling() {
+  fetchStatus();
+  statusPoller = setInterval(fetchStatus, 5000);
+}
+
+// Start polling right away
+startPolling();
+
+// ── Score submission ──────────────────────────────────────────────────────
+async function submitScore() {
+  const statusEl = document.getElementById('submitStatus');
+  statusEl.textContent = 'Saving your score…';
+  statusEl.className   = 'submit-status';
+  const sr = Math.round((runs / (Q.length * 6)) * 100);
+  try {
+    const r = await fetch(`${API}/submit`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        teamName, runs, wickets, correct,
+        strikeRate: sr, totalQuestions: Q.length
+      })
+    });
+    const d = await r.json();
+    if (!r.ok) throw new Error(d.error || 'Submission failed');
+    statusEl.textContent = '✅ Score saved to database!';
+    statusEl.className   = 'submit-status ok';
+  } catch (err) {
+    statusEl.textContent = '⚠️ ' + err.message;
+    statusEl.className   = 'submit-status err';
+  }
+  loadLeaderboard();
+}
+
+// ── Leaderboard ───────────────────────────────────────────────────────────
+async function loadLeaderboard() {
+  const el = document.getElementById('lbContent');
+  if (!el) return;
+  el.innerHTML = 'Loading leaderboard…';
+  el.className = 'lb-loader';
+  try {
+    const r = await fetch(`${API}/leaderboard`);
+    const d = await r.json();
+    if (!d.leaderboard || d.leaderboard.length === 0) {
+      el.innerHTML = 'No scores yet — yours might be the first!';
+      return;
+    }
+    let html = `<table class="lb-table"><thead><tr>
+      <th>#</th><th>Team</th><th>Correct</th><th>Runs</th><th>Wickets</th>
+    </tr></thead><tbody>`;
+    d.leaderboard.forEach(row => {
+      const medal   = row.rank === 1 ? '🥇' : row.rank === 2 ? '🥈' : row.rank === 3 ? '🥉' : row.rank;
+      const isYou   = row.teamName === teamName.toUpperCase();
+      const rowCls  = row.rank === 1 ? 'lb-rank-1' : isYou ? 'lb-you' : '';
+      const youBadge = isYou ? '<span class="lb-you-badge">YOU</span>' : '';
+      html += `<tr class="${rowCls}">
+        <td><strong>${medal}</strong></td>
+        <td>${escHtml(row.teamName)}${youBadge}</td>
+        <td><span class="lb-tag lb-tag-c">${row.correct}/12</span></td>
+        <td><span class="lb-tag lb-tag-r">${row.runs}</span></td>
+        <td><span class="lb-tag lb-tag-w">${row.wickets}</span></td>
+      </tr>`;
+    });
+    html += '</tbody></table>';
+    el.innerHTML = html;
+    el.className = '';
+  } catch {
+    el.innerHTML = 'Could not load leaderboard.';
+  }
+}
+
+function escHtml(s) {
+  return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+}
+
+// ────────────────────────────────────────────────────────────────────────────
+const Q = [
+  {
+    tag:"C", cls:"c",
+    hook:"🏏 The umpire raises his finger — what does printf actually print?",
+    q:"What is the output of this code?",
+    code:[
+      '<span class="kw">int</span> main() {',
+      '    <span class="fn">printf</span>(<span class="str">"Hello"</span>);',
+      '    <span class="fn">printf</span>(<span class="str">"World"</span>);',
+      '    <span class="kw">return</span> <span class="num">0</span>;',
+      '}'
+    ],
+    opts:["Hello World","HelloWorld","Hello\nWorld","Compile Error"],
+    ans:1,
+    exp:"<strong>HelloWorld</strong> — <code>printf</code> does NOT add a newline automatically. Both strings print back-to-back with no space or line break between them. To print on separate lines you need <strong>\\n</strong> at the end of each string."
+  },
+  {
+    tag:"For Loop", cls:"loop",
+    hook:"🎯 Count every delivery — how many balls does this loop bowl?",
+    q:"How many times does the loop body execute?",
+    code:[
+      '<span class="kw">for</span> (<span class="kw">int</span> <span class="vr">i</span> = <span class="num">0</span>; <span class="vr">i</span> &lt; <span class="num">5</span>; <span class="vr">i</span>++) {',
+      '    <span class="fn">printf</span>(<span class="str">"Ball\\n"</span>);',
+      '}'
+    ],
+    opts:["4 times","5 times","6 times","Infinite"],
+    ans:1,
+    exp:"<strong>5 times!</strong> i goes 0 → 1 → 2 → 3 → 4. When i becomes 5, the condition i&lt;5 is FALSE and the loop stops. Count = (5 − 0) = 5. Common trap: people see &lt;5 and think the answer is 4."
+  },
+  {
+    tag:"For Loop", cls:"loop",
+    hook:"🏃 After the over ends — what is i's value once the loop finishes?",
+    q:"What does printf print after the loop completes?",
+    code:[
+      '<span class="kw">int</span> <span class="vr">i</span>;',
+      '<span class="kw">for</span> (<span class="vr">i</span> = <span class="num">1</span>; <span class="vr">i</span> &lt;= <span class="num">5</span>; <span class="vr">i</span>++) {',
+      '    <span class="cmt">// do nothing</span>',
+      '}',
+      '<span class="fn">printf</span>(<span class="str">"%d"</span>, <span class="vr">i</span>);'
+    ],
+    opts:["4","5","6","Undefined"],
+    ans:2,
+    exp:"<strong>6!</strong> After the last valid iteration (i=5), i++ makes i=6. Then the condition i&lt;=5 is checked — it's FALSE — so the loop exits with i already equal to 6. The variable i still exists and holds 6."
+  },
+  {
+    tag:"C", cls:"c",
+    hook:"🔢 The scoreboard uses modulo — what's the remainder?",
+    q:"What is the output?",
+    code:[
+      '<span class="kw">int</span> <span class="vr">a</span> = <span class="num">10</span>, <span class="vr">b</span> = <span class="num">3</span>;',
+      '<span class="fn">printf</span>(<span class="str">"%d"</span>, <span class="vr">a</span> % <span class="vr">b</span>);'
+    ],
+    opts:["3","1","0","3.33"],
+    ans:1,
+    exp:"<strong>1!</strong> The % operator gives the <strong>remainder</strong> after division. 10 ÷ 3 = 3 remainder 1. It does NOT give the quotient (that would be 3) and it doesn't give a decimal. Modulo is hugely useful in programming — e.g., checking even/odd with n%2."
+  },
+  {
+    tag:"For Loop", cls:"loop",
+    hook:"🏏 A tricky googly — trace the output carefully!",
+    q:"What does this loop print?",
+    code:[
+      '<span class="kw">for</span> (<span class="kw">int</span> <span class="vr">i</span> = <span class="num">0</span>; <span class="vr">i</span> &lt; <span class="num">3</span>; <span class="vr">i</span>++) {',
+      '    <span class="fn">printf</span>(<span class="str">"%d "</span>, <span class="vr">i</span> * <span class="num">2</span>);',
+      '}'
+    ],
+    opts:["0 1 2","0 2 4","2 4 6","1 2 3"],
+    ans:1,
+    exp:"<strong>0 2 4</strong> — i takes values 0, 1, 2. Each time we print i×2: 0×2=0, 1×2=2, 2×2=4. The trick is the ×2 multiplier — beginners often just write out i's raw values (0 1 2)."
+  },
+  {
+    tag:"For Loop", cls:"loop",
+    hook:"⚠️ Spot the no-ball — there's a hidden bug in this delivery!",
+    q:"What is the output? (Look very carefully at the punctuation!)",
+    code:[
+      '<span class="kw">for</span> (<span class="kw">int</span> <span class="vr">i</span> = <span class="num">0</span>; <span class="vr">i</span> &lt; <span class="num">3</span>; <span class="vr">i</span>++);',
+      '<span class="fn">printf</span>(<span class="str">"Done"</span>);'
+    ],
+    opts:["DoneDoneDone","Done Done Done","Done","Nothing — infinite loop"],
+    ans:2,
+    exp:"<strong>Done — just once!</strong> There is a <strong>semicolon (;)</strong> right after the closing parenthesis of the for loop. That semicolon is the entire loop body (an empty statement). The loop runs 3 times doing absolutely nothing, then printf runs once. This is one of the most common accidental bugs in C!"
+  },
+  {
+    tag:"C", cls:"c",
+    hook:"📦 How big is an int — the storage box for numbers?",
+    q:"What does sizeof(int) typically return on a modern system?",
+    code:[
+      '<span class="fn">printf</span>(<span class="str">"%lu"</span>, <span class="kw">sizeof</span>(<span class="kw">int</span>));'
+    ],
+    opts:["1","2","4","8"],
+    ans:2,
+    exp:"<strong>4 bytes (32 bits)</strong> on most modern 32-bit and 64-bit systems. Memory sizes: char=1 byte, short=2 bytes, int=4 bytes, long=8 bytes (on 64-bit). Don't confuse bytes and bits — 4 bytes means 32 bits, not 4 bits!"
+  },
+  {
+    tag:"For Loop", cls:"loop",
+    hook:"🔄 A loop inside a loop — the fielders cover the whole ground!",
+    q:"How many total times is 'x' printed?",
+    code:[
+      '<span class="kw">for</span> (<span class="kw">int</span> <span class="vr">i</span> = <span class="num">0</span>; <span class="vr">i</span> &lt; <span class="num">3</span>; <span class="vr">i</span>++) {',
+      '    <span class="kw">for</span> (<span class="kw">int</span> <span class="vr">j</span> = <span class="num">0</span>; <span class="vr">j</span> &lt; <span class="num">2</span>; <span class="vr">j</span>++) {',
+      '        <span class="fn">printf</span>(<span class="str">"x"</span>);',
+      '    }',
+      '}'
+    ],
+    opts:["3","5","6","9"],
+    ans:2,
+    exp:"<strong>6 times!</strong> The outer loop runs 3 times (i = 0,1,2). For EACH outer iteration, the inner loop runs 2 times (j = 0,1). Total = 3 × 2 = 6. With nested loops, always <strong>multiply</strong> the iteration counts."
+  },
+  {
+    tag:"C", cls:"c",
+    hook:"🔀 The classic swap shot — what are a and b after swapping?",
+    q:"What does this code print?",
+    code:[
+      '<span class="kw">int</span> <span class="vr">a</span> = <span class="num">5</span>, <span class="vr">b</span> = <span class="num">10</span>;',
+      '<span class="kw">int</span> <span class="vr">temp</span> = <span class="vr">a</span>;',
+      '<span class="vr">a</span> = <span class="vr">b</span>;',
+      '<span class="vr">b</span> = <span class="vr">temp</span>;',
+      '<span class="fn">printf</span>(<span class="str">"%d %d"</span>, <span class="vr">a</span>, <span class="vr">b</span>);'
+    ],
+    opts:["5 10","10 5","10 10","5 5"],
+    ans:1,
+    exp:"<strong>10 5</strong> — Classic variable swap using temp. Step 1: temp = a = 5. Step 2: a = b = 10. Step 3: b = temp = 5. Many beginners say '5 10' thinking nothing changed, but a and b have swapped values."
+  },
+  {
+    tag:"For Loop", cls:"loop",
+    hook:"🔢 Countdown begins — the last over of the match!",
+    q:"What does this countdown loop print?",
+    code:[
+      '<span class="kw">for</span> (<span class="kw">int</span> <span class="vr">i</span> = <span class="num">5</span>; <span class="vr">i</span> &gt; <span class="num">0</span>; <span class="vr">i</span>--) {',
+      '    <span class="fn">printf</span>(<span class="str">"%d "</span>, <span class="vr">i</span>);',
+      '}'
+    ],
+    opts:["5 4 3 2 1 0","5 4 3 2 1","0 1 2 3 4 5","4 3 2 1 0"],
+    ans:1,
+    exp:"<strong>5 4 3 2 1</strong> — i starts at 5 and decrements each iteration (i--). The condition is i&gt;0, so when i becomes 0, the loop stops WITHOUT printing 0. Common trap: adding 0 to the output."
+  },
+  {
+    tag:"C", cls:"c",
+    hook:"📋 The batting order — arrays always start from index zero!",
+    q:"What does this code print?",
+    code:[
+      '<span class="kw">int</span> <span class="vr">arr</span>[] = {<span class="num">10</span>, <span class="num">20</span>, <span class="num">30</span>, <span class="num">40</span>};',
+      '<span class="fn">printf</span>(<span class="str">"%d"</span>, <span class="vr">arr</span>[<span class="num">0</span>] + <span class="vr">arr</span>[<span class="num">3</span>]);'
+    ],
+    opts:["30","50","60","70"],
+    ans:1,
+    exp:"<strong>50!</strong> Arrays are 0-indexed in C. arr[0] = 10 (1st element), arr[3] = 40 (4th element). 10 + 40 = 50. Classic trap: thinking arr[3] is 30 because it's 'the 3rd value', but index 3 is the <em>fourth</em> element."
+  },
+  {
+    tag:"DSA", cls:"dsa",
+    hook:"🏆 Final over! The crowd goes silent for this last one...",
+    q:"You push 1, then 2, then 3 into a Stack. You call POP twice. What two values come out, and in what order?",
+    code: null,
+    opts:["1 then 2","2 then 3","3 then 2","3 then 1"],
+    ans:2,
+    exp:"<strong>3 then 2!</strong> Stack is LIFO — Last In, First Out. 3 was pushed last so it pops first. Then 2 pops next. Think of a pile of plates: you always remove from the top. This is why Stack is used for Undo operations and function calls!"
+  }
+];
+
+let cur=0, runs=0, wickets=0, correct=0;
+
+function tryStartQuiz() {
+  const name = (document.getElementById('teamNameInput')?.value || '').trim();
+  if (!name) {
+    document.getElementById('startHint').textContent = 'Please enter your team name!';
+    document.getElementById('teamNameInput').focus();
+    return;
+  }
+  if (!quizActive) {
+    document.getElementById('startHint').textContent = 'Quiz is not active yet. Please wait.';
+    return;
+  }
+  teamName = name;
+  if (statusPoller) clearInterval(statusPoller);
+  document.getElementById('startScreen').style.display = 'none';
+  document.getElementById('quizArea').classList.add('show');
+  loadQ();
+}
+
+function startQuiz() { tryStartQuiz(); }
+
+function loadQ(){
+  const q=Q[cur];
+  document.getElementById('qNumber').textContent='OVER '+(cur+1);
+  document.getElementById('qTag').textContent=q.tag;
+  document.getElementById('qTag').className='q-tag '+q.cls;
+  document.getElementById('cricketHook').textContent=q.hook;
+  document.getElementById('questionText').textContent=q.q;
+
+  const cb=document.getElementById('codeBlock');
+  if(q.code){
+    cb.innerHTML='<div class="code-block">'+q.code.join('\n')+'</div>';
+  } else { cb.innerHTML=''; }
+
+  const oc=document.getElementById('optionsContainer');
+  oc.innerHTML='';
+  ['A','B','C','D'].forEach((L,i)=>{
+    const b=document.createElement('button');
+    b.className='option';
+    b.innerHTML=`<span class="option-letter">${L}</span><span>${q.opts[i]}</span>`;
+    b.onclick=()=>pick(i);
+    oc.appendChild(b);
+  });
+
+  document.getElementById('explanation').className='explanation';
+  document.getElementById('explanation').innerHTML='';
+  document.getElementById('feedbackBadge').className='feedback-badge';
+  document.getElementById('btnNext').className='btn-next';
+
+  updateSB(); updateProg();
+
+  const card=document.getElementById('questionCard');
+  card.style.animation='none'; card.offsetHeight; card.style.animation='';
+}
+
+function pick(sel){
+  const q=Q[cur];
+  const opts=document.querySelectorAll('.option');
+  opts.forEach(o=>o.disabled=true);
+  const fb=document.getElementById('feedbackBadge');
+  if(sel===q.ans){
+    opts[sel].classList.add('correct');
+    runs+=6; correct++;
+    fb.textContent='🏏 SIX! Correct answer!';
+    fb.className='feedback-badge correct-fb';
+  } else {
+    opts[sel].classList.add('wrong');
+    opts[q.ans].classList.add('correct');
+    opts.forEach((o,i)=>{ if(i!==sel&&i!==q.ans) o.classList.add('dim'); });
+    wickets++;
+    fb.textContent='❌ Wicket! Wrong answer.';
+    fb.className='feedback-badge wrong-fb';
+  }
+  document.getElementById('explanation').innerHTML=q.exp;
+  document.getElementById('explanation').className='explanation show';
+  const btn=document.getElementById('btnNext');
+  btn.textContent=cur<Q.length-1?'NEXT BALL →':'SEE SCORECARD 🏆';
+  btn.className='btn-next show';
+  updateSB();
+}
+
+function nextQuestion(){
+  cur++;
+  if(cur>=Q.length) showResult();
+  else loadQ();
+}
+
+function updateSB(){
+  document.getElementById('scoreRuns').textContent=runs;
+  document.getElementById('scoreWickets').textContent=wickets;
+  document.getElementById('scoreOver').textContent=cur+1;
+  const att=correct+wickets;
+  document.getElementById('strikeRate').textContent=att>0?Math.round((runs/(att*6))*100):'—';
+}
+
+function updateProg(){
+  const pct=Math.round((cur/Q.length)*100);
+  document.getElementById('progressFill').style.width=pct+'%';
+  document.getElementById('progressLabel').textContent='Question '+(cur+1)+' of '+Q.length;
+  document.getElementById('progressPct').textContent=pct+'%';
+}
+
+function showResult(){
+  document.getElementById('quizArea').classList.remove('show');
+  document.getElementById('resultScreen').classList.add('show');
+  document.getElementById('lbContent').innerHTML = 'Loading leaderboard…';
+  document.getElementById('lbContent').className = 'lb-loader';
+  document.getElementById('submitStatus').textContent = '';
+  submitScore();
+  const sr=Math.round((runs/(Q.length*6))*100);
+  document.getElementById('finalScore').textContent=correct;
+  document.getElementById('finalRuns').textContent=runs;
+  document.getElementById('finalWickets').textContent=wickets;
+  document.getElementById('finalSR').textContent=sr;
+  let emoji,title,sub,bg,col;
+  if(correct>=11){emoji='🏆';title='CENTURY MAKER!';sub='You are the Sachin of C programming!';bg='rgba(244,196,48,0.12)';col='#f4c430';}
+  else if(correct>=8){emoji='🏏';title='HALF CENTURY!';sub='Solid batting! Keep practising.';bg='rgba(100,181,246,0.12)';col='#64b5f6';}
+  else if(correct>=5){emoji='🌟';title='DECENT KNOCK!';sub='You survived the tricky for-loop deliveries!';bg='rgba(129,199,132,0.12)';col='#81c784';}
+  else{emoji='🥺';title='BACK TO NETS!';sub="Even Rohit Sharma had bad days. Try again!";bg='rgba(231,76,60,0.12)';col='#ef9a9a';}
+  document.getElementById('resultEmoji').textContent=emoji;
+  document.getElementById('resultTitle').textContent=title;
+  document.getElementById('resultSubtitle').textContent=sub;
+  const v=document.getElementById('resultVerdict');
+  v.textContent=correct+'/12 Correct · Strike Rate: '+sr;
+  v.style.cssText=`background:${bg};color:${col};border-color:${col};border-radius:8px;`;
+}
+
+function restartQuiz(){
+  cur=0;runs=0;wickets=0;correct=0;teamName='';
+  document.getElementById('resultScreen').classList.remove('show');
+  document.getElementById('startScreen').style.display = '';
+  if(document.getElementById('teamNameInput')) document.getElementById('teamNameInput').value='';
+  quizActive = false;
+  updateStatusUI();
+  updateStartBtn();
+  startPolling();
+}
+</script>
+</body>
+</html>

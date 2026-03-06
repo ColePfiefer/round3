@@ -1,0 +1,483 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Admin Panel – CodeCricket Round 3</title>
+<link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --sky: #0a1628; --sky-mid: #112240; --gold: #f4c430; --ball: #c0392b;
+    --pitch: #2d5a1b; --pitch-light: #3a7022; --white: #f9f6f0;
+    --gray: #8a9bb5; --correct: #27ae60; --wrong: #e74c3c;
+    --warn: #e67e22;
+  }
+  * { margin:0; padding:0; box-sizing:border-box; }
+  body {
+    background: var(--sky); color: var(--white);
+    font-family: 'DM Sans', sans-serif; min-height: 100vh;
+  }
+  body::before {
+    content:''; position:fixed; inset:0;
+    background: radial-gradient(ellipse 80% 50% at 50% 0%, rgba(244,196,48,0.05) 0%, transparent 60%);
+    pointer-events:none;
+  }
+  .container { max-width:900px; margin:0 auto; padding:24px 20px; }
+
+  /* ── Login ── */
+  #loginWrap {
+    display:flex; align-items:center; justify-content:center;
+    min-height:100vh;
+  }
+  .login-card {
+    background:var(--sky-mid); border:1px solid rgba(255,255,255,0.1);
+    border-radius:20px; padding:48px 40px; width:100%; max-width:420px;
+    text-align:center;
+  }
+  .login-card h1 {
+    font-family:'Bebas Neue',sans-serif; font-size:38px;
+    letter-spacing:3px; color:var(--gold); margin-bottom:6px;
+  }
+  .login-card p { color:var(--gray); font-size:13px; margin-bottom:32px; }
+  .login-card input {
+    width:100%; padding:14px 18px; background:rgba(255,255,255,0.06);
+    border:1.5px solid rgba(255,255,255,0.1); border-radius:10px;
+    color:var(--white); font-family:'DM Sans',sans-serif; font-size:15px;
+    outline:none; margin-bottom:14px;
+  }
+  .login-card input:focus { border-color:var(--gold); }
+  .btn { padding:14px 28px; border:none; border-radius:10px; cursor:pointer;
+    font-family:'Bebas Neue',sans-serif; font-size:18px; letter-spacing:2px;
+    transition:all 0.2s; width:100%; }
+  .btn-gold  { background:var(--gold); color:var(--sky); }
+  .btn-gold:hover  { filter:brightness(1.1); transform:translateY(-1px); }
+  .btn-green { background:var(--pitch); color:#fff; }
+  .btn-green:hover { background:var(--pitch-light); transform:translateY(-1px); }
+  .btn-red   { background:var(--ball); color:#fff; }
+  .btn-red:hover   { background:#a93226; transform:translateY(-1px); }
+  .btn-gray  { background:rgba(255,255,255,0.08); color:var(--gray); }
+  .btn-gray:hover  { background:rgba(255,255,255,0.14); }
+  .btn-sm    { padding:9px 18px; font-size:14px; letter-spacing:1px; width:auto; }
+  .err-msg { color:var(--wrong); font-size:13px; margin-top:10px; min-height:18px; }
+
+  /* ── Dashboard ── */
+  #dashboard { display:none; }
+  .topbar {
+    background:var(--sky-mid); border-bottom:1px solid rgba(255,255,255,0.07);
+    padding:16px 24px; display:flex; align-items:center;
+    justify-content:space-between; margin-bottom:28px;
+  }
+  .topbar-title {
+    font-family:'Bebas Neue',sans-serif; font-size:26px;
+    letter-spacing:3px; color:var(--gold);
+  }
+  .topbar-right { display:flex; gap:10px; align-items:center; }
+
+  .status-pill {
+    display:inline-flex; align-items:center; gap:7px;
+    padding:6px 15px; border-radius:20px; font-size:12px;
+    font-weight:600; letter-spacing:1.5px; text-transform:uppercase;
+  }
+  .status-pill.active   { background:rgba(39,174,96,0.15); color:#81c784; border:1px solid rgba(39,174,96,0.4); }
+  .status-pill.inactive { background:rgba(231,76,60,0.15); color:#ef9a9a; border:1px solid rgba(231,76,60,0.4); }
+  .dot { width:8px; height:8px; border-radius:50%; flex-shrink:0; }
+  .dot.active   { background:#27ae60; box-shadow:0 0 6px #27ae60; }
+  .dot.inactive { background:#e74c3c; }
+
+  .grid2 { display:grid; grid-template-columns:1fr 1fr; gap:16px; margin-bottom:24px; }
+  @media(max-width:580px){ .grid2{ grid-template-columns:1fr; } }
+
+  .card {
+    background:var(--sky-mid); border:1px solid rgba(255,255,255,0.08);
+    border-radius:14px; padding:24px;
+  }
+  .card h2 {
+    font-family:'Bebas Neue',sans-serif; font-size:18px; letter-spacing:2px;
+    color:var(--gray); margin-bottom:16px; text-transform:uppercase;
+  }
+  .stat-big {
+    font-family:'Bebas Neue',sans-serif; font-size:52px;
+    color:var(--gold); line-height:1;
+  }
+  .stat-sub { color:var(--gray); font-size:12px; margin-top:4px; }
+
+  .ctrl-row { display:flex; gap:12px; flex-wrap:wrap; margin-top:16px; }
+
+  /* ── Leaderboard table ── */
+  .section-title {
+    font-family:'Bebas Neue',sans-serif; font-size:22px; letter-spacing:3px;
+    color:var(--gold); margin:28px 0 14px;
+  }
+  table { width:100%; border-collapse:collapse; font-size:14px; }
+  thead th {
+    text-align:left; padding:10px 14px;
+    border-bottom:1px solid rgba(255,255,255,0.1);
+    color:var(--gray); font-size:11px; letter-spacing:1.5px;
+    text-transform:uppercase; font-weight:600;
+  }
+  tbody tr:hover { background: rgba(255,255,255,0.03); }
+  tbody td { padding:11px 14px; border-bottom:1px solid rgba(255,255,255,0.05); }
+  .rank-1 td:first-child { color:var(--gold); font-weight:700; font-size:16px; }
+  .rank-2 td:first-child { color:#c0c0c0; font-weight:700; }
+  .rank-3 td:first-child { color:#cd7f32; font-weight:700; }
+  .team-name { font-weight:600; color:var(--white); }
+  .badge-tag {
+    display:inline-block; padding:2px 9px; border-radius:12px; font-size:11px;
+    font-weight:600; letter-spacing:0.5px;
+  }
+  .tag-correct { background:rgba(39,174,96,0.2); color:#81c784; }
+  .tag-runs    { background:rgba(244,196,48,0.15); color:var(--gold); }
+  .tag-wickets { background:rgba(231,76,60,0.15); color:#ef9a9a; }
+
+  .empty-msg { text-align:center; padding:40px; color:var(--gray); font-size:15px; }
+
+  .toast {
+    position:fixed; bottom:24px; right:24px; z-index:999;
+    background:var(--sky-mid); border:1px solid rgba(255,255,255,0.12);
+    border-radius:10px; padding:13px 20px; font-size:14px;
+    box-shadow:0 8px 32px rgba(0,0,0,0.4); transition:all 0.3s;
+    max-width:320px;
+  }
+  .toast.success { border-color:rgba(39,174,96,0.5); color:#81c784; }
+  .toast.error   { border-color:rgba(231,76,60,0.5);  color:#ef9a9a; }
+  .toast.hidden  { opacity:0; pointer-events:none; transform:translateY(10px); }
+
+  .loader {
+    width:18px; height:18px; border:2px solid rgba(255,255,255,0.15);
+    border-top-color:var(--gold); border-radius:50%;
+    animation:spin 0.7s linear infinite; display:inline-block;
+  }
+  @keyframes spin { to{transform:rotate(360deg);} }
+
+  .refresh-btn {
+    background:none; border:1px solid rgba(255,255,255,0.12);
+    border-radius:8px; color:var(--gray); cursor:pointer; padding:7px 14px;
+    font-size:12px; font-family:'DM Sans',sans-serif; transition:all 0.2s;
+  }
+  .refresh-btn:hover { background:rgba(255,255,255,0.06); color:var(--white); }
+
+  .confirm-overlay {
+    position:fixed; inset:0; background:rgba(0,0,0,0.7); z-index:100;
+    display:flex; align-items:center; justify-content:center;
+  }
+  .confirm-overlay.hidden { display:none; }
+  .confirm-box {
+    background:var(--sky-mid); border:1px solid rgba(255,255,255,0.1);
+    border-radius:16px; padding:32px; max-width:380px; text-align:center;
+  }
+  .confirm-box h3 { font-size:20px; font-weight:600; margin-bottom:10px; }
+  .confirm-box p  { color:var(--gray); font-size:14px; margin-bottom:24px; }
+  .confirm-btns   { display:flex; gap:12px; justify-content:center; }
+</style>
+</head>
+<body>
+
+<!-- ── LOGIN ────────────────────────────────────────────────────────────────── -->
+<div id="loginWrap">
+  <div class="login-card">
+    <div style="font-size:36px;margin-bottom:10px;">🛡️</div>
+    <h1>ADMIN PANEL</h1>
+    <p>CodeCricket Quiz · Round 3</p>
+    <input type="password" id="pwInput" placeholder="Enter admin password"
+           onkeydown="if(event.key==='Enter')doLogin()">
+    <button class="btn btn-gold" onclick="doLogin()">LOGIN</button>
+    <div class="err-msg" id="loginErr"></div>
+  </div>
+</div>
+
+<!-- ── DASHBOARD ──────────────────────────────────────────────────────────── -->
+<div id="dashboard">
+  <div class="topbar">
+    <div class="topbar-title">🏏 ADMIN · ROUND 3</div>
+    <div class="topbar-right">
+      <div id="quizStatusPill" class="status-pill inactive">
+        <div class="dot inactive" id="statusDot"></div>
+        <span id="statusText">INACTIVE</span>
+      </div>
+      <button class="refresh-btn" onclick="refreshAll()">⟳ Refresh</button>
+      <button class="btn btn-gray btn-sm" onclick="doLogout()">Logout</button>
+    </div>
+  </div>
+
+  <div class="container">
+
+    <!-- Stats row -->
+    <div class="grid2">
+      <div class="card">
+        <h2>Total Submissions</h2>
+        <div class="stat-big" id="totalSubs">–</div>
+        <div class="stat-sub">Scores saved in DB</div>
+      </div>
+      <div class="card">
+        <h2>Unique Teams</h2>
+        <div class="stat-big" id="uniqueTeams">–</div>
+        <div class="stat-sub">De-duplicated by team name</div>
+      </div>
+    </div>
+
+    <!-- Control card -->
+    <div class="card" style="margin-bottom:24px;">
+      <h2>Quiz Controls</h2>
+      <p style="color:var(--gray);font-size:14px;margin-bottom:18px;">
+        Start or stop the quiz for participants. Only when started can teams
+        submit their scores.
+      </p>
+      <div class="ctrl-row">
+        <button class="btn btn-green btn-sm" id="btnStart" onclick="startQuiz()">▶ START QUIZ</button>
+        <button class="btn btn-red   btn-sm" id="btnStop"  onclick="stopQuiz()">■ STOP QUIZ</button>
+        <button class="btn btn-gray  btn-sm" style="margin-left:auto;" onclick="confirmReset()">
+          🗑 Reset Leaderboard
+        </button>
+      </div>
+      <div id="ctrlMsg" style="margin-top:12px;font-size:13px;color:var(--gray);"></div>
+    </div>
+
+    <!-- Leaderboard -->
+    <div style="display:flex;align-items:center;justify-content:space-between;">
+      <div class="section-title">🏆 LEADERBOARD</div>
+      <button class="refresh-btn" onclick="loadLeaderboard()">⟳ Refresh</button>
+    </div>
+    <div class="card" style="overflow-x:auto;">
+      <div id="lbContent"><div class="empty-msg"><span class="loader"></span></div></div>
+    </div>
+
+    <!-- All scores -->
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-top:8px;">
+      <div class="section-title">📋 ALL SUBMISSIONS</div>
+      <button class="refresh-btn" onclick="loadAllScores()">⟳ Refresh</button>
+    </div>
+    <div class="card" style="overflow-x:auto;margin-bottom:48px;">
+      <div id="scoresContent"><div class="empty-msg"><span class="loader"></span></div></div>
+    </div>
+
+  </div><!-- /container -->
+</div><!-- /dashboard -->
+
+<!-- ── Confirm reset overlay ─────────────────────────────────────────────── -->
+<div class="confirm-overlay hidden" id="resetOverlay">
+  <div class="confirm-box">
+    <h3>⚠️ Reset Leaderboard?</h3>
+    <p>This will permanently delete <strong>all</strong> submitted scores from the database. This cannot be undone.</p>
+    <div class="confirm-btns">
+      <button class="btn btn-gray btn-sm" onclick="cancelReset()">Cancel</button>
+      <button class="btn btn-red  btn-sm" onclick="doReset()">Yes, Delete All</button>
+    </div>
+  </div>
+</div>
+
+<!-- ── Toast ─────────────────────────────────────────────────────────────── -->
+<div class="toast hidden" id="toast"></div>
+
+<script>
+const API = window.location.hostname === 'localhost'
+  ? 'http://localhost:3000/api'
+  : `${window.location.origin}/api`;
+let adminToken = null;
+
+// ── Login / Logout ────────────────────────────────────────────────────────
+async function doLogin() {
+  const pw = document.getElementById('pwInput').value;
+  if (!pw) return;
+  document.getElementById('loginErr').textContent = '';
+  try {
+    const r = await fetch(`${API}/admin/login`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ password: pw })
+    });
+    const d = await r.json();
+    if (!r.ok) throw new Error(d.error || 'Login failed');
+    adminToken = d.token;
+    document.getElementById('loginWrap').style.display = 'none';
+    document.getElementById('dashboard').style.display  = 'block';
+    refreshAll();
+  } catch (err) {
+    document.getElementById('loginErr').textContent = err.message;
+  }
+}
+
+function doLogout() {
+  adminToken = null;
+  location.reload();
+}
+
+// ── Helpers ───────────────────────────────────────────────────────────────
+function authHeaders() {
+  return { 'Content-Type': 'application/json', 'X-Admin-Token': adminToken };
+}
+
+function showToast(msg, type = 'success') {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.className = `toast ${type}`;
+  setTimeout(() => t.classList.add('hidden'), 3200);
+}
+
+// ── Status ────────────────────────────────────────────────────────────────
+async function loadStatus() {
+  try {
+    const r = await fetch(`${API}/status`);
+    const d = await r.json();
+    setStatusUI(d.active);
+  } catch {}
+}
+
+function setStatusUI(active) {
+  const pill = document.getElementById('quizStatusPill');
+  const dot  = document.getElementById('statusDot');
+  const txt  = document.getElementById('statusText');
+  if (active) {
+    pill.className = 'status-pill active';
+    dot.className  = 'dot active';
+    txt.textContent = 'LIVE';
+  } else {
+    pill.className = 'status-pill inactive';
+    dot.className  = 'dot inactive';
+    txt.textContent = 'INACTIVE';
+  }
+}
+
+async function startQuiz() {
+  const btn = document.getElementById('btnStart');
+  btn.disabled = true; btn.textContent = '...';
+  try {
+    const r = await fetch(`${API}/admin/start`, {
+      method: 'POST', headers: authHeaders()
+    });
+    const d = await r.json();
+    if (!r.ok) throw new Error(d.error);
+    setStatusUI(true);
+    document.getElementById('ctrlMsg').textContent = '✅ ' + d.message;
+    showToast('Quiz is now LIVE!');
+  } catch (err) { showToast(err.message, 'error'); }
+  btn.disabled = false; btn.textContent = '▶ START QUIZ';
+}
+
+async function stopQuiz() {
+  const btn = document.getElementById('btnStop');
+  btn.disabled = true; btn.textContent = '...';
+  try {
+    const r = await fetch(`${API}/admin/stop`, {
+      method: 'POST', headers: authHeaders()
+    });
+    const d = await r.json();
+    if (!r.ok) throw new Error(d.error);
+    setStatusUI(false);
+    document.getElementById('ctrlMsg').textContent = '🛑 ' + d.message;
+    showToast('Quiz stopped.', 'error');
+  } catch (err) { showToast(err.message, 'error'); }
+  btn.disabled = false; btn.textContent = '■ STOP QUIZ';
+}
+
+// ── Leaderboard ───────────────────────────────────────────────────────────
+async function loadLeaderboard() {
+  const el = document.getElementById('lbContent');
+  el.innerHTML = '<div class="empty-msg"><span class="loader"></span></div>';
+  try {
+    const r = await fetch(`${API}/leaderboard`);
+    const d = await r.json();
+    if (!d.leaderboard || d.leaderboard.length === 0) {
+      el.innerHTML = '<div class="empty-msg">No scores yet.</div>'; return;
+    }
+    let html = `<table>
+      <thead><tr>
+        <th>#</th><th>Team</th><th>Correct</th><th>Runs</th>
+        <th>Wickets</th><th>Strike Rate</th><th>Submitted</th>
+      </tr></thead><tbody>`;
+    d.leaderboard.forEach(row => {
+      const medal = row.rank === 1 ? '🥇' : row.rank === 2 ? '🥈' : row.rank === 3 ? '🥉' : row.rank;
+      html += `<tr class="${row.rank <= 3 ? 'rank-'+row.rank : ''}">
+        <td><strong>${medal}</strong></td>
+        <td class="team-name">${esc(row.teamName)}</td>
+        <td><span class="badge-tag tag-correct">${row.correct}/12</span></td>
+        <td><span class="badge-tag tag-runs">${row.runs} runs</span></td>
+        <td><span class="badge-tag tag-wickets">${row.wickets}</span></td>
+        <td>${row.strikeRate}%</td>
+        <td style="color:var(--gray);font-size:12px;">${fmtTime(row.submittedAt)}</td>
+      </tr>`;
+    });
+    html += '</tbody></table>';
+    el.innerHTML = html;
+  } catch (err) {
+    el.innerHTML = `<div class="empty-msg" style="color:var(--wrong);">Error: ${err.message}</div>`;
+  }
+}
+
+// ── All scores ────────────────────────────────────────────────────────────
+async function loadAllScores() {
+  const el = document.getElementById('scoresContent');
+  el.innerHTML = '<div class="empty-msg"><span class="loader"></span></div>';
+  try {
+    const r = await fetch(`${API}/admin/scores`, { headers: authHeaders() });
+    const d = await r.json();
+    document.getElementById('totalSubs').textContent  = d.count;
+    const names = new Set(d.scores.map(s => s.teamName));
+    document.getElementById('uniqueTeams').textContent = names.size;
+    if (!d.scores || d.scores.length === 0) {
+      el.innerHTML = '<div class="empty-msg">No submissions yet.</div>'; return;
+    }
+    let html = `<table>
+      <thead><tr>
+        <th>#</th><th>Team</th><th>Correct</th><th>Runs</th>
+        <th>Wickets</th><th>Strike Rate</th><th>Submitted</th>
+      </tr></thead><tbody>`;
+    d.scores.forEach((row, i) => {
+      html += `<tr>
+        <td style="color:var(--gray)">${i + 1}</td>
+        <td class="team-name">${esc(row.teamName)}</td>
+        <td><span class="badge-tag tag-correct">${row.correct}/12</span></td>
+        <td><span class="badge-tag tag-runs">${row.runs}</span></td>
+        <td><span class="badge-tag tag-wickets">${row.wickets}</span></td>
+        <td>${row.strikeRate}%</td>
+        <td style="color:var(--gray);font-size:12px;">${fmtTime(row.submittedAt)}</td>
+      </tr>`;
+    });
+    html += '</tbody></table>';
+    el.innerHTML = html;
+  } catch (err) {
+    el.innerHTML = `<div class="empty-msg" style="color:var(--wrong);">Error: ${err.message}</div>`;
+  }
+}
+
+// ── Reset ─────────────────────────────────────────────────────────────────
+function confirmReset() { document.getElementById('resetOverlay').classList.remove('hidden'); }
+function cancelReset()  { document.getElementById('resetOverlay').classList.add('hidden'); }
+
+async function doReset() {
+  cancelReset();
+  try {
+    const r = await fetch(`${API}/admin/scores`, {
+      method: 'DELETE', headers: authHeaders()
+    });
+    const d = await r.json();
+    if (!r.ok) throw new Error(d.error);
+    showToast(`Deleted ${d.deleted} score(s). Leaderboard cleared.`);
+    refreshAll();
+  } catch (err) { showToast(err.message, 'error'); }
+}
+
+// ── Refresh all ───────────────────────────────────────────────────────────
+function refreshAll() {
+  loadStatus();
+  loadLeaderboard();
+  loadAllScores();
+}
+
+// ── Utils ─────────────────────────────────────────────────────────────────
+function esc(str) {
+  return str.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+}
+function fmtTime(iso) {
+  if (!iso) return '—';
+  const d = new Date(iso);
+  return d.toLocaleTimeString('en-IN', { hour:'2-digit', minute:'2-digit', hour12:true })
+       + ', ' + d.toLocaleDateString('en-IN', { day:'2-digit', month:'short' });
+}
+
+// Auto-refresh leaderboard every 15 seconds while dashboard is open
+setInterval(() => {
+  if (adminToken) loadLeaderboard();
+}, 15000);
+</script>
+</body>
+</html>
