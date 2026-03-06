@@ -11,24 +11,25 @@ const { MongoClient } = require('mongodb');
 const app  = express();
 const PORT = process.env.PORT || 3000;
 
-// ── MongoDB ──────────────────────────────────────────────────────────────────
+// ── MongoDB (lazy cached connection — works for both serverless & long-lived) ─
 const MONGO_URI = 'mongodb+srv://codemsrit01:6Jmy0j41cF6NT4kt@cluster0.qxej0.mongodb.net/?retryWrites=true&w=majority&appName=Cluster0';
 const DB_NAME   = 'round3quiz';
 
-let db;
-async function connectDB() {
+let _db = null;
+async function getDB() {
+  if (_db) return _db;
   const client = new MongoClient(MONGO_URI);
   await client.connect();
-  db = client.db(DB_NAME);
+  _db = client.db(DB_NAME);
   console.log(`✅  Connected to MongoDB  →  database: ${DB_NAME}`);
 
   // Seed quiz settings document if it doesn't exist
-  const settings = db.collection('settings');
-  const existing = await settings.findOne({ key: 'quizState' });
+  const existing = await _db.collection('settings').findOne({ key: 'quizState' });
   if (!existing) {
-    await settings.insertOne({ key: 'quizState', active: false });
+    await _db.collection('settings').insertOne({ key: 'quizState', active: false });
     console.log('📋  Seeded default quiz state (inactive)');
   }
+  return _db;
 }
 
 // ── Admin auth ────────────────────────────────────────────────────────────────
@@ -44,7 +45,10 @@ function requireAdmin(req, res, next) {
 // ── Middleware ────────────────────────────────────────────────────────────────
 app.use(cors());
 app.use(express.json());
-app.use(express.static('.'));   // serve HTML files from same folder
+// Static files are served by Vercel CDN directly; only needed for local dev
+if (process.env.NODE_ENV !== 'production') {
+  app.use(express.static('.'));
+}
 
 // ── Health check ─────────────────────────────────────────────────────────────
 app.get('/api/health', (_req, res) => {
@@ -61,6 +65,7 @@ app.get('/api/health', (_req, res) => {
  */
 app.get('/api/status', async (_req, res) => {
   try {
+    const db = await getDB();
     const doc = await db.collection('settings').findOne({ key: 'quizState' });
     res.json({ active: doc?.active ?? false });
   } catch (err) {
@@ -75,6 +80,7 @@ app.get('/api/status', async (_req, res) => {
  */
 app.post('/api/submit', async (req, res) => {
   try {
+    const db = await getDB();
     // Check quiz is active
     const stateDoc = await db.collection('settings').findOne({ key: 'quizState' });
     if (!stateDoc?.active) {
@@ -110,6 +116,7 @@ app.post('/api/submit', async (req, res) => {
  */
 app.get('/api/leaderboard', async (_req, res) => {
   try {
+    const db = await getDB();
     const scores = await db.collection('scores')
       .find()
       .sort({ correct: -1, runs: -1, wickets: 1, submittedAt: 1 })
@@ -179,6 +186,7 @@ app.post('/api/admin/login', (req, res) => {
  */
 app.post('/api/admin/start', requireAdmin, async (_req, res) => {
   try {
+    const db = await getDB();
     await db.collection('settings').updateOne(
       { key: 'quizState' },
       { $set: { active: true, startedAt: new Date() } }
@@ -195,6 +203,7 @@ app.post('/api/admin/start', requireAdmin, async (_req, res) => {
  */
 app.post('/api/admin/stop', requireAdmin, async (_req, res) => {
   try {
+    const db = await getDB();
     await db.collection('settings').updateOne(
       { key: 'quizState' },
       { $set: { active: false, stoppedAt: new Date() } }
@@ -211,6 +220,7 @@ app.post('/api/admin/stop', requireAdmin, async (_req, res) => {
  */
 app.get('/api/admin/scores', requireAdmin, async (_req, res) => {
   try {
+    const db = await getDB();
     const scores = await db.collection('scores')
       .find()
       .sort({ submittedAt: -1 })
@@ -227,6 +237,7 @@ app.get('/api/admin/scores', requireAdmin, async (_req, res) => {
  */
 app.delete('/api/admin/scores', requireAdmin, async (_req, res) => {
   try {
+    const db = await getDB();
     const result = await db.collection('scores').deleteMany({});
     res.json({ success: true, deleted: result.deletedCount });
   } catch (err) {
@@ -235,15 +246,21 @@ app.delete('/api/admin/scores', requireAdmin, async (_req, res) => {
 });
 
 // ─────────────────────────────────────────────────────────────────────────────
-//  Boot
+//  Boot  — listen locally, export for Vercel serverless
 // ─────────────────────────────────────────────────────────────────────────────
-connectDB().then(() => {
-  app.listen(PORT, () => {
-    console.log(`🚀  Server running  →  http://localhost:${PORT}`);
-    console.log(`🏏  Quiz page       →  http://localhost:${PORT}/cricket-cs-quiz.html`);
-    console.log(`🛡️   Admin panel     →  http://localhost:${PORT}/admin.html`);
+if (require.main === module) {
+  // Running directly with `node server.js` (local dev)
+  getDB().then(() => {
+    app.listen(PORT, () => {
+      console.log(`🚀  Server running  →  http://localhost:${PORT}`);
+      console.log(`🏏  Quiz page       →  http://localhost:${PORT}/cricket-cs-quiz.html`);
+      console.log(`🛡️   Admin panel     →  http://localhost:${PORT}/admin.html`);
+    });
+  }).catch(err => {
+    console.error('❌  Failed to connect to MongoDB:', err);
+    process.exit(1);
   });
-}).catch(err => {
-  console.error('❌  Failed to connect to MongoDB:', err);
-  process.exit(1);
-});
+}
+
+// Vercel imports this file as a module — export the Express app
+module.exports = app;
